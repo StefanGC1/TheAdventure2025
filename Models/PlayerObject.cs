@@ -69,6 +69,13 @@ public class PlayerObject : RenderableGameObject
     public void GameOver()
     {
         SetState(PlayerState.GameOver, PlayerStateDirection.None);
+
+        SoundManager soundManager = SoundManager.Instance;
+        soundManager.StopEffect("Move");
+        soundManager.StopEffect("Attack");
+        soundManager.StopEffect("BombFuse");
+        soundManager.StopMusic();
+        soundManager.PlayEffect("GameOver");
     }
 
     public void Attack()
@@ -80,6 +87,7 @@ public class PlayerObject : RenderableGameObject
 
         var direction = State.Direction;
         SetState(PlayerState.Attack, direction);
+        SoundManager.Instance.PlayEffect("Attack");
     }
 
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)

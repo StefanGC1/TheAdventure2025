@@ -44,6 +44,9 @@ public class SpriteSheet
     private int _textureId = -1;
     private DateTimeOffset _animationStart = DateTimeOffset.MinValue;
 
+    public Action<int, int>? _externalEventHandler;
+
+
     public static SpriteSheet Load(GameRenderer renderer, string fileName, string directory)
     {
         var json = File.ReadAllText(Path.Combine(directory, fileName));
@@ -97,6 +100,7 @@ public class SpriteSheet
         AnimationFinished = false;
     }
 
+    public int currentFrame;
     public void Render(GameRenderer renderer, (int X, int Y) dest, double angle = 0.0, Point rotationCenter = new())
     {
         if (ActiveAnimation == null)
@@ -109,12 +113,12 @@ public class SpriteSheet
         {
             var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
                 ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
-            var currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
+            currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
                                      (ActiveAnimation.DurationMs / (double)totalFrames));
             if (currentFrame > totalFrames)
             {
                 AnimationFinished = true;
-                
+
                 if (ActiveAnimation.Loop)
                 {
                     _animationStart = DateTimeOffset.Now;
@@ -125,6 +129,9 @@ public class SpriteSheet
                     currentFrame = totalFrames;
                 }
             }
+
+            // 😭😭😭
+            _externalEventHandler?.Invoke(currentFrame, totalFrames);
 
             var currentRow = ActiveAnimation.StartFrame.Row + currentFrame / ColumnCount;
             var currentCol = ActiveAnimation.StartFrame.Col + currentFrame % ColumnCount;

@@ -11,7 +11,6 @@ public class Engine
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
-    private readonly SoundManager _soundManager;
     private readonly ScriptEngine _scriptEngine = new();
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
@@ -23,11 +22,10 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
-    public Engine(GameRenderer renderer, Input input, SoundManager soundManager)
+    public Engine(GameRenderer renderer, Input input)
     {
         _renderer = renderer;
         _input = input;
-        _soundManager = soundManager;
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
@@ -78,17 +76,25 @@ public class Engine
 
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
 
-        _soundManager.LoadMusic("PlayTheme", "Assets/Audio/Music/PlayTheme.wav");
-        _soundManager.PlayMusic("PlayTheme");
+        var soundManager = SoundManager.Instance; // Initialize SoundManager
+        soundManager.LoadMusic("PlayTheme", "Assets/Audio/Music/PlayTheme.wav");
+        soundManager.LoadEffect("Move", "Assets/Audio/Effects/MoveSfx.wav");
+        soundManager.LoadEffect("Attack", "Assets/Audio/Effects/AttackSfx.wav");
+        soundManager.LoadEffect("BombFuse", "Assets/Audio/Effects/BombFuseSfx.wav");
+        soundManager.LoadEffect("BombExplode", "Assets/Audio/Effects/BombExplodeSfx.wav");
+        soundManager.LoadEffect("GameOver", "Assets/Audio/Effects/GameOverSfx.wav");
+        soundManager.PlayMusic("PlayTheme");
     }
 
     public void ProcessFrame()
     {
+        var soundManager = SoundManager.Instance;
+        soundManager.Update();
         var currentTime = DateTimeOffset.Now;
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
-        if (_player == null)
+        if (_player == null || _player.State.State == PlayerObject.PlayerState.GameOver)
         {
             return;
         }
@@ -101,16 +107,45 @@ public class Engine
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+
+        // 😭😭😭
+        if (_player.State.State == PlayerObject.PlayerState.Move)
+        {
+            if (_player.SpriteSheet.currentFrame == 0 || _player.SpriteSheet.currentFrame == 3)
+                soundManager.PlayEffect("Move");
+        }
+        if (_player.State.State == PlayerObject.PlayerState.Idle)
+        {
+            soundManager.StopEffect("Move");
+        }
+
         if (isAttacking)
         {
             _player.Attack();
         }
-        
+
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
+        }
+
+        // Moved collision detection to processFrame
+        foreach (var gameObject in GetRenderables())
+        {
+            if (gameObject is TemporaryGameObject tempGameObject)
+            {
+                if (!tempGameObject.CanKillPlayer)
+                    continue;
+
+                var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+                var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+                if (deltaX < 32 && deltaY < 32)
+                {
+                    _player.GameOver();
+                }
+            }
         }
     }
 
@@ -143,19 +178,6 @@ public class Engine
         foreach (var id in toRemove)
         {
             _gameObjects.Remove(id, out var gameObject);
-
-            if (_player == null)
-            {
-                continue;
-            }
-
-            var tempGameObject = (TemporaryGameObject)gameObject!;
-            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
-            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
-            {
-                _player.GameOver();
-            }
         }
 
         _player?.Render(_renderer);
