@@ -21,7 +21,8 @@ public static class Program
         {
             var input = new Input(sdl);
             var gameRenderer = new GameRenderer(sdl, gameWindow);
-            var engine = new Engine(gameRenderer, input);
+            var soundManager = new SoundManager();
+            var engine = new Engine(gameRenderer, input, soundManager);
 
             engine.SetupWorld();
 

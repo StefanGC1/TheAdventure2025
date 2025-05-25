@@ -11,6 +11,7 @@ public class Engine
 {
     private readonly GameRenderer _renderer;
     private readonly Input _input;
+    private readonly SoundManager _soundManager;
     private readonly ScriptEngine _scriptEngine = new();
 
     private readonly Dictionary<int, GameObject> _gameObjects = new();
@@ -22,10 +23,11 @@ public class Engine
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
 
-    public Engine(GameRenderer renderer, Input input)
+    public Engine(GameRenderer renderer, Input input, SoundManager soundManager)
     {
         _renderer = renderer;
         _input = input;
+        _soundManager = soundManager;
 
         _input.OnMouseClick += (_, coords) => AddBomb(coords.x, coords.y);
     }
@@ -75,6 +77,9 @@ public class Engine
         _currentLevel = level;
 
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
+
+        _soundManager.LoadMusic("PlayTheme", "Assets/Audio/Music/PlayTheme.wav");
+        _soundManager.PlayMusic("PlayTheme");
     }
 
     public void ProcessFrame()
